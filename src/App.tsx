@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PainRecordProvider } from './context/PainRecordContext';
 import Navigation from './components/Navigation';
 import PainCalendar from './components/PainCalendar';
 import AddPainForm from './components/AddPainForm';
 import PainChart from './components/PainChart';
 import DataManagement from './components/DataManagement';
+import Reminders from './components/Reminders';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import './App.css';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState<string>('calendar');
+
+  // Регистрируем сервис-воркер для PWA функциональности
+  useEffect(() => {
+    serviceWorkerRegistration.register({
+      onSuccess: () => console.log('Сервис-воркер успешно зарегистрирован'),
+      onUpdate: (registration) => {
+        // Показываем уведомление о том, что доступно обновление
+        const updateAvailable = window.confirm('Доступна новая версия приложения. Обновить сейчас?');
+        if (updateAvailable && registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          window.location.reload();
+        }
+      }
+    });
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -34,6 +51,10 @@ const App = () => {
           
           {activeTab === 'chart' && (
             <PainChart />
+          )}
+          
+          {activeTab === 'reminders' && (
+            <Reminders />
           )}
         </main>
       </PainRecordProvider>

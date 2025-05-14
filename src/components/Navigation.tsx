@@ -27,6 +27,15 @@ const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
         >
           График
         </li>
+        <li 
+          className={`py-3 px-4 text-center flex-1 cursor-pointer transition-colors duration-200 
+            ${activeTab === 'reminders' 
+              ? 'bg-green-600 text-white font-medium' 
+              : 'text-gray-200 hover:bg-gray-700'}`}
+          onClick={() => onTabChange('reminders')}
+        >
+          Напоминания
+        </li>
       </ul>
     </nav>
   );
