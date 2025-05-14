@@ -16,6 +16,9 @@ const urlsToCache = [
   '/logo512.png'
 ];
 
+// Хранилище для запланированных уведомлений
+const scheduledNotifications = new Map();
+
 // Событие установки сервис-воркера
 self.addEventListener('install', (event) => {
   // Выполняем кеширование важных ресурсов
@@ -78,6 +81,75 @@ self.addEventListener('fetch', (event) => {
       })
   );
 });
+
+// Обработка сообщений от основного потока
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+
+  console.log('Service Worker received message:', event.data);
+
+  if (event.data.type === 'SCHEDULE_REMINDER') {
+    const { time, settings } = event.data.payload;
+    
+    // Планируем уведомление
+    scheduleNotification(time, settings);
+  } else if (event.data.type === 'CANCEL_REMINDERS') {
+    // Отменяем все запланированные уведомления
+    cancelAllNotifications();
+  }
+});
+
+// Функция для планирования уведомлений
+function scheduleNotification(time, settings) {
+  // Отменяем все предыдущие уведомления
+  cancelAllNotifications();
+  
+  const now = Date.now();
+  const delay = time - now;
+  
+  // Если время уже прошло, не планируем
+  if (delay <= 0) return;
+  
+  console.log(`Service Worker: запланировано уведомление через ${Math.floor(delay/1000)} секунд`);
+  
+  // Создаем таймер для показа уведомления
+  const timerId = setTimeout(() => {
+    self.registration.showNotification('Дневник боли', {
+      body: 'Не забудьте записать информацию о болях за сегодня',
+      icon: '/logo192.png',
+      badge: '/logo192.png',
+      data: {
+        url: '/',
+        timestamp: Date.now()
+      },
+      vibrate: [200, 100, 200]
+    });
+    
+    // Если напоминания ежедневные, планируем на следующий день
+    if (settings.enabled && settings.frequency === 'daily') {
+      const nextDay = new Date(time);
+      nextDay.setDate(nextDay.getDate() + 1);
+      scheduleNotification(nextDay.getTime(), settings);
+    } 
+    // Если еженедельные, планируем на следующую неделю соответствующего дня
+    else if (settings.enabled && settings.frequency === 'weekly') {
+      const nextWeek = new Date(time);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      scheduleNotification(nextWeek.getTime(), settings);
+    }
+  }, delay);
+  
+  // Сохраняем ID таймера
+  scheduledNotifications.set('reminder', timerId);
+}
+
+// Функция для отмены всех запланированных уведомлений
+function cancelAllNotifications() {
+  scheduledNotifications.forEach((timerId) => {
+    clearTimeout(timerId);
+  });
+  scheduledNotifications.clear();
+}
 
 // Обработка push-уведомлений
 self.addEventListener('push', (event) => {
