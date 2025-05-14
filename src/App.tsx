@@ -7,6 +7,7 @@ import PainChart from './components/PainChart';
 import DataManagement from './components/DataManagement';
 import Reminders from './components/Reminders';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import { appVersion } from './version';
 import './App.css';
 
 const App = () => {
@@ -212,7 +213,7 @@ const App = () => {
       </PainRecordProvider>
       
       <footer className="bg-gray-800 text-white text-center p-4 mt-auto">
-        <p>© {new Date().getFullYear()} Дневник боли</p>
+        <p>© {new Date().getFullYear()} Дневник боли | Версия: {appVersion}</p>
       </footer>
     </div>
   );
