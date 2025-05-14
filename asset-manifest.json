@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/pain-record/static/css/main.47a8a37a.css",
+    "main.js": "/pain-record/static/js/main.6847f297.js",
+    "static/js/453.ba2c5e01.chunk.js": "/pain-record/static/js/453.ba2c5e01.chunk.js",
+    "index.html": "/pain-record/index.html",
+    "main.47a8a37a.css.map": "/pain-record/static/css/main.47a8a37a.css.map",
+    "main.6847f297.js.map": "/pain-record/static/js/main.6847f297.js.map",
+    "453.ba2c5e01.chunk.js.map": "/pain-record/static/js/453.ba2c5e01.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.47a8a37a.css",
+    "static/js/main.6847f297.js"
+  ]
+}
