@@ -31,6 +31,7 @@ const Reminders = () => {
   });
   
   const [notificationsPermission, setNotificationsPermission] = useState<NotificationPermission | null>(null);
+  const [nextNotificationTime, setNextNotificationTime] = useState<string>("");
   
   useEffect(() => {
     if ('Notification' in window) {
@@ -43,6 +44,11 @@ const Reminders = () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
       if (reminders.enabled) {
         scheduleNotification();
+        calculateNextNotificationTime();
+      } else {
+        // Если напоминания отключены, удаляем все существующие запланированные
+        cancelScheduledNotifications();
+        setNextNotificationTime("");
       }
     } catch (error) {
       console.error('Ошибка при сохранении настроек напоминаний:', error);
@@ -95,12 +101,134 @@ const Reminders = () => {
     }
   };
   
+  const calculateNextNotificationTime = () => {
+    // Получаем текущую дату
+    const now = new Date();
+    
+    // Разбираем время напоминания (HH:MM)
+    const [hours, minutes] = reminders.time.split(':').map(Number);
+    
+    // Создаем дату запланированного напоминания
+    let reminderDate = new Date();
+    reminderDate.setHours(hours, minutes, 0, 0);
+    
+    // Если время сегодня уже прошло, переносим на завтра
+    if (reminderDate < now) {
+      reminderDate.setDate(reminderDate.getDate() + 1);
+    }
+    
+    // Если частота "weekly", проверяем подходит ли день недели
+    if (reminders.frequency === 'weekly') {
+      // JavaScript использует 0 для воскресенья, а в нашей структуре 0 - это воскресенье
+      const dayOfWeek = reminderDate.getDay().toString();
+      
+      // Если сегодняшний день не в списке выбранных
+      if (!reminders.daysOfWeek.includes(dayOfWeek)) {
+        // Находим ближайший следующий выбранный день
+        let daysToAdd = 1;
+        let nextDay = new Date(reminderDate);
+        
+        while (daysToAdd < 8) {
+          nextDay.setDate(nextDay.getDate() + 1);
+          const nextDayOfWeek = nextDay.getDay().toString();
+          
+          if (reminders.daysOfWeek.includes(nextDayOfWeek)) {
+            reminderDate = nextDay;
+            break;
+          }
+          
+          daysToAdd++;
+        }
+      }
+    }
+    
+    // Форматируем дату для отображения
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    
+    setNextNotificationTime(reminderDate.toLocaleString('ru-RU', options));
+    
+    return reminderDate;
+  };
+  
   const scheduleNotification = () => {
-    // Реализация запланированного уведомления через service worker
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      // В реальном приложении здесь бы использовался механизм периодической синхронизации
-      // или Background Sync API, но сейчас мы используем простой setTimeout
-      console.log('Напоминание запланировано на', reminders.time);
+    if (!('Notification' in window) || notificationsPermission !== 'granted') {
+      console.log('Уведомления не разрешены или не поддерживаются');
+      return;
+    }
+    
+    // Отмена существующих таймеров
+    cancelScheduledNotifications();
+    
+    // Получаем следующую дату уведомления
+    const reminderDate = calculateNextNotificationTime();
+    const now = new Date();
+    
+    console.log('Напоминание запланировано на', reminderDate.toLocaleString());
+    
+    // Вычисляем время до следующего напоминания в миллисекундах
+    const timeUntilReminder = reminderDate.getTime() - now.getTime();
+    
+    // Если используется сервис-воркер, отправляем ему информацию
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_REMINDER',
+        payload: {
+          time: reminderDate.getTime(),
+          settings: reminders
+        }
+      });
+    }
+    
+    // Для обеспечения работы на мобильных устройствах также используем таймер в основном потоке
+    const timerId = setTimeout(() => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('Дневник боли', {
+          body: 'Не забудьте записать информацию о болях за сегодня',
+          icon: '/logo192.png',
+        });
+        
+        // Сохраняем в localStorage время последнего уведомления
+        localStorage.setItem('lastReminderShown', new Date().toISOString());
+        
+        // Если режим ежедневный, запланируем следующее уведомление на завтра
+        if (reminders.enabled) {
+          setTimeout(() => scheduleNotification(), 1000);
+        }
+      }
+    }, timeUntilReminder);
+    
+    // Сохраняем ID таймера в localStorage для возможности отмены
+    localStorage.setItem('reminderTimerId', timerId.toString());
+  };
+  
+  const cancelScheduledNotifications = () => {
+    // Отменяем текущий таймер, если он существует
+    const timerId = localStorage.getItem('reminderTimerId');
+    if (timerId) {
+      clearTimeout(parseInt(timerId));
+      localStorage.removeItem('reminderTimerId');
+    }
+    
+    // Уведомляем service worker об отмене запланированных уведомлений
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CANCEL_REMINDERS'
+      });
+    }
+  };
+  
+  const sendTestReminderNotification = () => {
+    if (notificationsPermission === 'granted') {
+      new Notification('Дневник боли', {
+        body: 'Не забудьте записать информацию о болях за сегодня',
+        icon: '/logo192.png'
+      });
     }
   };
   
@@ -206,6 +334,36 @@ const Reminders = () => {
                   </div>
                 </div>
               )}
+              
+              {nextNotificationTime && (
+                <div className="mt-4 mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-sm">
+                  <p className="font-medium text-green-800">Следующее напоминание:</p>
+                  <p className="text-green-700">{nextNotificationTime}</p>
+                </div>
+              )}
+
+              <div className="mt-4 pt-3 border-t border-gray-200 flex flex-col sm:flex-row gap-2">
+                <button
+                  className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors duration-200 text-sm"
+                  onClick={() => {
+                    if (Notification.permission === 'granted') {
+                      new Notification('Дневник боли', {
+                        body: 'Это тестовое напоминание. Проверка работоспособности уведомлений.',
+                        icon: '/logo192.png'
+                      });
+                    }
+                  }}
+                >
+                  Отправить тестовое уведомление
+                </button>
+                
+                <button
+                  className="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition-colors duration-200 text-sm"
+                  onClick={sendTestReminderNotification}
+                >
+                  Тест уведомления о записи боли
+                </button>
+              </div>
             </>
           )}
         </div>
