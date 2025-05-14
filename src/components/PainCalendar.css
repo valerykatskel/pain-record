@@ -1,0 +1,100 @@
+.pain-calendar {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.pain-records {
+  margin-top: 20px;
+  background-color: #f8f8f8;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.pain-record-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.pain-type {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.pain-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pain-notes {
+  font-style: italic;
+  margin-top: 5px;
+}
+
+.legend {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+/* Стили для отметок на календаре */
+.headache-pain {
+  background-color: rgba(255, 99, 132, 0.3) !important;
+  position: relative;
+}
+
+.headache-pain::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: rgb(255, 99, 132);
+  margin: 3px;
+}
+
+.stomach-pain {
+  background-color: rgba(54, 162, 235, 0.3) !important;
+  position: relative;
+}
+
+.stomach-pain::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: rgb(54, 162, 235);
+  margin: 3px;
+}
+
+/* Для элемента, у которого есть оба класса */
+.headache-pain.stomach-pain {
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 99, 132, 0.3) 0%,
+    rgba(255, 99, 132, 0.3) 50%,
+    rgba(54, 162, 235, 0.3) 50%,
+    rgba(54, 162, 235, 0.3) 100%
+  ) !important;
+} 
