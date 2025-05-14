@@ -12,47 +12,62 @@ import './App.css';
 const App = () => {
   const [activeTab, setActiveTab] = useState<string>('calendar');
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
 
   // Регистрируем сервис-воркер для PWA функциональности
   useEffect(() => {
-    serviceWorkerRegistration.register({
-      onSuccess: (registration) => {
-        console.log('Сервис-воркер успешно зарегистрирован');
-        setSwRegistration(registration);
-        
-        // Проверяем наличие запланированных уведомлений при загрузке
-        checkScheduledNotifications();
-      },
-      onUpdate: (registration) => {
-        // Сохраняем новую регистрацию
-        setSwRegistration(registration);
-        
-        // Показываем уведомление о том, что доступно обновление
-        const updateAvailable = window.confirm('Доступна новая версия приложения. Обновить сейчас?');
-        if (updateAvailable && registration.waiting) {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          window.location.reload();
+    if ('serviceWorker' in navigator) {
+      // Добавляем обработчик для сообщений от Service Worker
+      const handleServiceWorkerMessage = (event: MessageEvent) => {
+        console.log('Получено сообщение от SW:', event.data);
+        if (event.data && event.data.type === 'NOTIFICATION_SHOWN') {
+          console.log('Показано уведомление:', event.data.payload);
         }
+      };
+      
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+      
+      // Проверяем наличие контроллера и получаем его регистрацию
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(registration => {
+          console.log('Service Worker уже активен');
+          setSwRegistration(registration);
+          checkScheduledNotifications();
+        });
       }
-    });
-    
-    // Добавляем обработчик для получения сообщений от service worker
-    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
-    
-    return () => {
-      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
-    };
+      
+      // Регистрируем Service Worker
+      serviceWorkerRegistration.register({
+        onSuccess: (registration) => {
+          console.log('Сервис-воркер успешно зарегистрирован');
+          setSwRegistration(registration);
+          
+          // Проверяем наличие запланированных уведомлений при загрузке
+          checkScheduledNotifications();
+        },
+        onUpdate: (registration) => {
+          console.log('Доступна новая версия приложения');
+          setSwRegistration(registration);
+          setUpdateAvailable(true);
+        }
+      });
+      
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      };
+    }
   }, []);
   
-  // Функция для обработки сообщений от service worker
-  const handleServiceWorkerMessage = (event: MessageEvent) => {
-    if (!event.data) return;
-    
-    console.log('Получено сообщение от service worker:', event.data);
-    
-    if (event.data.type === 'NOTIFICATION_SHOWN') {
-      console.log('Показано уведомление:', event.data.payload);
-      // Здесь можно добавить дополнительную логику для обработки показанных уведомлений
+  // Обработчик обновления приложения
+  const handleUpdate = () => {
+    if (swRegistration && swRegistration.waiting) {
+      // Отправляем сообщение service worker для пропуска ожидания
+      swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      
+      // Перезагружаем страницу после получения контрольного сообщения
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
     }
   };
   
@@ -80,6 +95,24 @@ const App = () => {
             reminderDate.setDate(reminderDate.getDate() + 1);
           }
           
+          // Проверяем, если частота еженедельная, нужно проверить день недели
+          if (reminderSettings.frequency === 'weekly') {
+            const dayOfWeek = reminderDate.getDay().toString();
+            if (!reminderSettings.daysOfWeek.includes(dayOfWeek)) {
+              // Ищем следующий подходящий день
+              for (let i = 1; i <= 7; i++) {
+                const nextDate = new Date(reminderDate);
+                nextDate.setDate(reminderDate.getDate() + i);
+                const nextDayOfWeek = nextDate.getDay().toString();
+                
+                if (reminderSettings.daysOfWeek.includes(nextDayOfWeek)) {
+                  reminderDate = nextDate;
+                  break;
+                }
+              }
+            }
+          }
+          
           // Отправляем сообщение service worker для планирования напоминания
           navigator.serviceWorker.controller.postMessage({
             type: 'SCHEDULE_REMINDER',
@@ -94,11 +127,59 @@ const App = () => {
       console.error('Ошибка при восстановлении запланированных напоминаний:', error);
     }
   };
+  
+  // Функция для запроса разрешения на уведомления
+  const requestNotificationsPermission = async () => {
+    if ('Notification' in window) {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          // Проверяем, есть ли разрешение на периодическую синхронизацию
+          if ('periodicSync' in navigator.serviceWorker.controller!) {
+            try {
+              const status = await navigator.permissions.query({
+                name: 'periodic-background-sync' as PermissionName
+              });
+              
+              if (status.state === 'granted') {
+                console.log('Разрешение на периодическую синхронизацию получено');
+              } else {
+                console.log('Запрашиваем разрешение на периодическую синхронизацию');
+              }
+            } catch (e) {
+              console.error('Периодическая синхронизация не поддерживается', e);
+            }
+          }
+          
+          // Запрашиваем разрешение на push-уведомления
+          if ('pushManager' in swRegistration!) {
+            try {
+              console.log('Запрашиваем разрешение на push-уведомления');
+            } catch (e) {
+              console.error('Push-уведомления не поддерживаются', e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при запросе разрешения на уведомления:', error);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-green-600 text-white p-4 shadow-md">
         <h1 className="text-center text-xl md:text-2xl font-bold">Дневник боли</h1>
+        {updateAvailable && (
+          <div className="text-center mt-2">
+            <button 
+              className="bg-white text-green-700 px-4 py-1 rounded-full text-sm font-medium hover:bg-green-100"
+              onClick={handleUpdate}
+            >
+              Обновить приложение
+            </button>
+          </div>
+        )}
       </header>
       
       <PainRecordProvider>
@@ -122,7 +203,10 @@ const App = () => {
           )}
           
           {activeTab === 'reminders' && (
-            <Reminders />
+            <Reminders 
+              swRegistration={swRegistration}
+              requestPermission={requestNotificationsPermission}
+            />
           )}
         </main>
       </PainRecordProvider>

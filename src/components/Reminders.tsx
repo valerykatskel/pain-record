@@ -7,7 +7,12 @@ interface ReminderSettings {
   daysOfWeek: string[];
 }
 
-const Reminders = () => {
+interface RemindersProps {
+  swRegistration?: ServiceWorkerRegistration | null;
+  requestPermission?: () => Promise<void>;
+}
+
+const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission }) => {
   const STORAGE_KEY = 'painRecordReminders';
   
   const [reminders, setReminders] = useState<ReminderSettings>(() => {
@@ -88,7 +93,13 @@ const Reminders = () => {
   };
   
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
+    if (requestPermission) {
+      // Используем функцию из App компонента, если она передана
+      await requestPermission();
+      if ('Notification' in window) {
+        setNotificationsPermission(Notification.permission);
+      }
+    } else if ('Notification' in window) {
       const permission = await Notification.requestPermission();
       setNotificationsPermission(permission);
       
@@ -183,28 +194,32 @@ const Reminders = () => {
           settings: reminders
         }
       });
-    }
-    
-    // Для обеспечения работы на мобильных устройствах также используем таймер в основном потоке
-    const timerId = setTimeout(() => {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        const notification = new Notification('Дневник боли', {
-          body: 'Не забудьте записать информацию о болях за сегодня',
-          icon: '/logo192.png',
-        });
-        
-        // Сохраняем в localStorage время последнего уведомления
-        localStorage.setItem('lastReminderShown', new Date().toISOString());
-        
-        // Если режим ежедневный, запланируем следующее уведомление на завтра
-        if (reminders.enabled) {
-          setTimeout(() => scheduleNotification(), 1000);
+      
+      console.log('Отправлено сообщение сервис-воркеру о планировании уведомления');
+    } else {
+      console.warn('Service Worker контроллер недоступен - используем локальный таймер');
+      
+      // Если сервис-воркер недоступен, используем таймер в основном потоке
+      const timerId = setTimeout(() => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const notification = new Notification('Дневник боли', {
+            body: 'Не забудьте записать информацию о болях за сегодня',
+            icon: '/logo192.png',
+          });
+          
+          // Сохраняем в localStorage время последнего уведомления
+          localStorage.setItem('lastReminderShown', new Date().toISOString());
+          
+          // Если режим ежедневный, запланируем следующее уведомление на завтра
+          if (reminders.enabled) {
+            setTimeout(() => scheduleNotification(), 1000);
+          }
         }
-      }
-    }, timeUntilReminder);
-    
-    // Сохраняем ID таймера в localStorage для возможности отмены
-    localStorage.setItem('reminderTimerId', timerId.toString());
+      }, timeUntilReminder);
+      
+      // Сохраняем ID таймера в localStorage для возможности отмены
+      localStorage.setItem('reminderTimerId', timerId.toString());
+    }
   };
   
   const cancelScheduledNotifications = () => {
@@ -227,7 +242,9 @@ const Reminders = () => {
     if (notificationsPermission === 'granted') {
       new Notification('Дневник боли', {
         body: 'Не забудьте записать информацию о болях за сегодня',
-        icon: '/logo192.png'
+        icon: '/logo192.png',
+        requireInteraction: true,  // Важно для iOS: уведомление не исчезнет автоматически
+        silent: false  // Будет издавать звук
       });
     }
   };
@@ -349,7 +366,8 @@ const Reminders = () => {
                     if (Notification.permission === 'granted') {
                       new Notification('Дневник боли', {
                         body: 'Это тестовое напоминание. Проверка работоспособности уведомлений.',
-                        icon: '/logo192.png'
+                        icon: '/logo192.png',
+                        requireInteraction: true
                       });
                     }
                   }}
@@ -364,6 +382,17 @@ const Reminders = () => {
                   Тест уведомления о записи боли
                 </button>
               </div>
+              
+              {swRegistration && (
+                <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                  <p className="font-medium text-gray-700">Статус фоновых уведомлений:</p>
+                  <p className="text-green-600">✓ Сервис-воркер активен</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Уведомления будут работать даже при закрытом приложении,
+                    если устройство включено и подключено к интернету.
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>
