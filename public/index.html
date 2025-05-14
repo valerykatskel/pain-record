@@ -10,6 +10,21 @@
       content="Приложение для учета головных болей и болей в животе"
     />
     
+    <!-- Скрипт для перенаправления в GitHub Pages -->
+    <script type="text/javascript">
+      // Проверяем наличие параметра p= в URL
+      (function(l) {
+        if (l.search[1] === '/' ) {
+          var decoded = l.search.slice(1).split('&').map(function(s) { 
+            return s.replace(/~and~/g, '&')
+          }).join('?');
+          window.history.replaceState(null, null,
+              l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      }(window.location))
+    </script>
+    
     <!-- iOS PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
