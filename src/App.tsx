@@ -11,9 +11,9 @@ const App = () => {
   const [activeTab, setActiveTab] = useState<string>('calendar');
 
   return (
-    <div className="App">
-      <header className="app-header">
-        <h1>Дневник боли</h1>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <header className="bg-green-600 text-white p-4 shadow-md">
+        <h1 className="text-center text-xl md:text-2xl font-bold">Дневник боли</h1>
       </header>
       
       <PainRecordProvider>
@@ -22,7 +22,7 @@ const App = () => {
           onTabChange={setActiveTab} 
         />
         
-        <main className="app-content">
+        <main className="flex-1 p-4 md:p-6 w-full max-w-6xl mx-auto">
           <DataManagement />
           
           {activeTab === 'calendar' && (
@@ -38,7 +38,7 @@ const App = () => {
         </main>
       </PainRecordProvider>
       
-      <footer className="app-footer">
+      <footer className="bg-gray-800 text-white text-center p-4 mt-auto">
         <p>© {new Date().getFullYear()} Дневник боли</p>
       </footer>
     </div>

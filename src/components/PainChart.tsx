@@ -5,8 +5,7 @@ import {
 } from 'recharts';
 import { usePainRecords } from '../context/PainRecordContext';
 import { PainType, PainCause } from '../types';
-import { addMonths, format, subMonths } from 'date-fns';
-import './PainChart.css';
+import { subMonths } from 'date-fns';
 
 const PainChart = () => {
   const { getChartData } = usePainRecords();
@@ -111,100 +110,119 @@ const PainChart = () => {
   };
 
   return (
-    <div className="pain-chart">
-      <h2>График боли</h2>
+    <div className="mt-5 max-w-4xl mx-auto">
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">График боли</h2>
       
-      <div className="chart-controls">
-        <div className="filter-section">
-          <h3>Типы боли</h3>
-          <div className="filter-options">
-            {(['headache', 'stomach'] as PainType[]).map(type => (
-              <label key={type} className="filter-option">
-                <input
-                  type="checkbox"
-                  checked={selectedTypes.includes(type)}
-                  onChange={() => handleTypeToggle(type)}
-                />
-                <span className="filter-name">{getTypeName(type)}</span>
-              </label>
-            ))}
+      <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <h3 className="text-md font-medium text-gray-700 mb-2">Типы боли</h3>
+            <div className="space-y-2">
+              {(['headache', 'stomach'] as PainType[]).map(type => (
+                <label key={type} className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedTypes.includes(type)}
+                    onChange={() => handleTypeToggle(type)}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">{getTypeName(type)}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
-        
-        <div className="filter-section">
-          <h3>Причины</h3>
-          <div className="filter-options">
-            {(['menstruation', 'stress', 'solarFlare', 'unknown'] as PainCause[]).map(cause => (
-              <label key={cause} className="filter-option">
-                <input
-                  type="checkbox"
-                  checked={selectedCauses.includes(cause)}
-                  onChange={() => handleCauseToggle(cause)}
-                />
-                <span className="filter-name">{getCauseName(cause)}</span>
-              </label>
-            ))}
+          
+          <div>
+            <h3 className="text-md font-medium text-gray-700 mb-2">Причины</h3>
+            <div className="space-y-2">
+              {(['menstruation', 'stress', 'solarFlare', 'unknown'] as PainCause[]).map(cause => (
+                <label key={cause} className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedCauses.includes(cause)}
+                    onChange={() => handleCauseToggle(cause)}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">{getCauseName(cause)}</span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
-        
-        <div className="filter-section">
-          <h3>Период</h3>
-          <select 
-            className="period-select"
-            onChange={(e) => handlePeriodChange(e.target.value)}
-            defaultValue="3months"
-          >
-            <option value="1month">1 месяц</option>
-            <option value="3months">3 месяца</option>
-            <option value="6months">6 месяцев</option>
-            <option value="1year">1 год</option>
-          </select>
+          
+          <div>
+            <h3 className="text-md font-medium text-gray-700 mb-2">Период</h3>
+            <select 
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              defaultValue="3months"
+            >
+              <option value="1month">1 месяц</option>
+              <option value="3months">3 месяца</option>
+              <option value="6months">6 месяцев</option>
+              <option value="1year">1 год</option>
+            </select>
+          </div>
         </div>
       </div>
       
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart
-            data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis domain={[0, 10]} />
-            <Tooltip />
-            <Legend />
-            
-            {selectedTypes.map(type => (
-              <Line
-                key={type}
-                type="monotone"
-                dataKey={type}
-                name={getTypeName(type)}
-                stroke={getLineColor(type)}
-                activeDot={{ r: 8 }}
-                strokeWidth={2}
+      <div className="bg-white p-4 rounded-lg shadow-md mb-6 h-96">
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fontSize: 12 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
               />
-            ))}
-            
-            {selectedCauses.map(cause => (
-              <Line
-                key={cause}
-                type="monotone"
-                dataKey={cause}
-                name={getCauseName(cause)}
-                stroke={getLineColor(cause)}
-                strokeDasharray="5 5"
-                dot={{ r: 4 }}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+              <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} />
+              <Tooltip contentStyle={{ fontSize: '12px' }} />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              
+              {selectedTypes.map(type => (
+                <Line
+                  key={type}
+                  type="monotone"
+                  dataKey={type}
+                  name={getTypeName(type)}
+                  stroke={getLineColor(type)}
+                  activeDot={{ r: 6 }}
+                  strokeWidth={2}
+                />
+              ))}
+              
+              {selectedCauses.map(cause => (
+                <Line
+                  key={cause}
+                  type="monotone"
+                  dataKey={cause}
+                  name={getCauseName(cause)}
+                  stroke={getLineColor(cause)}
+                  strokeDasharray="5 5"
+                  dot={{ r: 3 }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full flex items-center justify-center">
+            <p className="text-gray-500 italic">Нет данных для отображения на графике</p>
+          </div>
+        )}
       </div>
       
-      <div className="chart-explanation">
-        <p>График показывает интенсивность боли (по шкале от 1 до 10) в зависимости от времени.</p>
-        <p>Сплошные линии показывают типы боли, а пунктирные — причины боли.</p>
-        <p>Используйте фильтры выше, чтобы включить или отключить определенные типы боли и причины.</p>
+      <div className="bg-white p-4 rounded-lg shadow-md text-sm text-gray-600">
+        <h3 className="font-medium text-gray-700 mb-2">Информация о графике</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>График показывает интенсивность боли по шкале от 1 до 10</li>
+          <li>Сплошные линии — типы боли, пунктирные — причины боли</li>
+          <li>Используйте фильтры выше для анализа корреляций</li>
+        </ul>
       </div>
     </div>
   );

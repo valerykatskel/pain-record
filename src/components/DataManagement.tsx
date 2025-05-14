@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { usePainRecords } from '../context/PainRecordContext';
-import './DataManagement.css';
 
 const DataManagement = () => {
   const { records, addRecord, clearAllRecords } = usePainRecords();
@@ -108,98 +107,109 @@ const DataManagement = () => {
   };
 
   return (
-    <div className="data-management">
-      <button className="data-btn" onClick={() => setIsModalOpen(true)}>
+    <div className="mt-2 mb-5 flex justify-end">
+      <button 
+        className="bg-gray-700 text-white py-1.5 px-3 text-sm rounded hover:bg-gray-800 transition-colors duration-200"
+        onClick={() => setIsModalOpen(true)}
+      >
         Управление данными
       </button>
       
       {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>Управление данными</h3>
-            
-            <div className="modal-actions">
-              <div className="action-group">
-                <h4>Экспорт данных</h4>
-                <p>Сохраните ваши данные в файл, чтобы не потерять их при очистке браузера</p>
-                <button 
-                  className="action-btn export-btn" 
-                  onClick={handleExport}
-                  disabled={records.length === 0}
-                >
-                  Экспортировать данные
-                </button>
-                {records.length === 0 && (
-                  <p className="info-message">Нет данных для экспорта</p>
-                )}
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-5">
+              <h3 className="text-xl font-semibold text-gray-800 border-b pb-3 mb-4">Управление данными</h3>
               
-              <div className="action-group">
-                <h4>Импорт данных</h4>
-                <p>Загрузите ранее сохраненные данные из файла</p>
-                <input 
-                  type="file" 
-                  accept=".json" 
-                  style={{ display: 'none' }} 
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                />
-                <button 
-                  className="action-btn import-btn" 
-                  onClick={handleImportClick}
-                >
-                  Импортировать данные
-                </button>
-                {importError && (
-                  <p className="error-message">{importError}</p>
-                )}
-                {importSuccess && (
-                  <p className="success-message">{importSuccess}</p>
-                )}
-              </div>
-              
-              <div className="action-group">
-                <h4>Очистка данных</h4>
-                <p>Удалите все записи о боли</p>
-                {!showClearConfirm ? (
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="font-medium text-gray-800 mb-2">Экспорт данных</h4>
+                  <p className="text-sm text-gray-600 mb-3">Сохраните ваши данные в файл, чтобы не потерять их при очистке браузера</p>
                   <button 
-                    className="action-btn clear-btn" 
-                    onClick={handleClearData}
+                    className={`w-full py-2 px-4 rounded font-medium text-white text-sm 
+                      ${records.length === 0 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-green-600 hover:bg-green-700'}`} 
+                    onClick={handleExport}
                     disabled={records.length === 0}
                   >
-                    Очистить все данные
+                    Экспортировать данные
                   </button>
-                ) : (
-                  <div className="clear-confirm">
-                    <p className="warning-message">Вы уверены? Это действие нельзя отменить!</p>
-                    <div className="clear-confirm-actions">
-                      <button 
-                        className="confirm-clear-btn" 
-                        onClick={confirmClearData}
-                      >
-                        Да, удалить все
-                      </button>
-                      <button 
-                        className="cancel-clear-btn" 
-                        onClick={cancelClearData}
-                      >
-                        Отмена
-                      </button>
+                  {records.length === 0 && (
+                    <p className="text-sm text-gray-500 italic mt-2">Нет данных для экспорта</p>
+                  )}
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="font-medium text-gray-800 mb-2">Импорт данных</h4>
+                  <p className="text-sm text-gray-600 mb-3">Загрузите ранее сохраненные данные из файла</p>
+                  <input 
+                    type="file" 
+                    accept=".json" 
+                    className="hidden" 
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                  />
+                  <button 
+                    className="w-full py-2 px-4 bg-blue-600 text-white rounded font-medium text-sm hover:bg-blue-700"
+                    onClick={handleImportClick}
+                  >
+                    Импортировать данные
+                  </button>
+                  {importError && (
+                    <p className="text-sm text-red-600 mt-2">{importError}</p>
+                  )}
+                  {importSuccess && (
+                    <p className="text-sm text-green-600 mt-2">{importSuccess}</p>
+                  )}
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="font-medium text-gray-800 mb-2">Очистка данных</h4>
+                  <p className="text-sm text-gray-600 mb-3">Удалите все записи о боли</p>
+                  {!showClearConfirm ? (
+                    <button 
+                      className={`w-full py-2 px-4 rounded font-medium text-white text-sm 
+                        ${records.length === 0 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-red-600 hover:bg-red-700'}`}
+                      onClick={handleClearData}
+                      disabled={records.length === 0}
+                    >
+                      Очистить все данные
+                    </button>
+                  ) : (
+                    <div className="bg-red-50 p-3 rounded-md border border-red-300">
+                      <p className="text-sm font-semibold text-red-700 mb-2">Вы уверены? Это действие нельзя отменить!</p>
+                      <div className="flex gap-2">
+                        <button 
+                          className="flex-1 py-1.5 px-3 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700"
+                          onClick={confirmClearData}
+                        >
+                          Да, удалить все
+                        </button>
+                        <button 
+                          className="flex-1 py-1.5 px-3 bg-gray-300 text-gray-800 rounded text-sm font-medium hover:bg-gray-400"
+                          onClick={cancelClearData}
+                        >
+                          Отмена
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {records.length === 0 && !showClearConfirm && (
-                  <p className="info-message">Нет данных для удаления</p>
-                )}
+                  )}
+                  {records.length === 0 && !showClearConfirm && (
+                    <p className="text-sm text-gray-500 italic mt-2">Нет данных для удаления</p>
+                  )}
+                </div>
               </div>
+              
+              <button 
+                className="w-full mt-5 py-2 px-4 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition-colors duration-200"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Закрыть
+              </button>
             </div>
-            
-            <button 
-              className="close-modal-btn" 
-              onClick={() => setIsModalOpen(false)}
-            >
-              Закрыть
-            </button>
           </div>
         </div>
       )}
