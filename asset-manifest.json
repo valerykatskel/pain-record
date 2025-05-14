@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/pain-record/static/css/main.70da18bd.css",
-    "main.js": "/pain-record/static/js/main.2dbd4cc4.js",
+    "main.css": "/pain-record/static/css/main.83660c01.css",
+    "main.js": "/pain-record/static/js/main.38b4a0e6.js",
     "static/js/453.ba2c5e01.chunk.js": "/pain-record/static/js/453.ba2c5e01.chunk.js",
     "index.html": "/pain-record/index.html",
-    "main.70da18bd.css.map": "/pain-record/static/css/main.70da18bd.css.map",
-    "main.2dbd4cc4.js.map": "/pain-record/static/js/main.2dbd4cc4.js.map",
+    "main.83660c01.css.map": "/pain-record/static/css/main.83660c01.css.map",
+    "main.38b4a0e6.js.map": "/pain-record/static/js/main.38b4a0e6.js.map",
     "453.ba2c5e01.chunk.js.map": "/pain-record/static/js/453.ba2c5e01.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.70da18bd.css",
-    "static/js/main.2dbd4cc4.js"
+    "static/css/main.83660c01.css",
+    "static/js/main.38b4a0e6.js"
   ]
 }
