@@ -4,6 +4,7 @@ import Navigation from './components/Navigation';
 import PainCalendar from './components/PainCalendar';
 import AddPainForm from './components/AddPainForm';
 import PainChart from './components/PainChart';
+import DataManagement from './components/DataManagement';
 import './App.css';
 
 const App = () => {
@@ -22,6 +23,8 @@ const App = () => {
         />
         
         <main className="app-content">
+          <DataManagement />
+          
           {activeTab === 'calendar' && (
             <>
               <AddPainForm />
@@ -36,7 +39,7 @@ const App = () => {
       </PainRecordProvider>
       
       <footer className="app-footer">
-        <p>© 2023 Дневник боли</p>
+        <p>© {new Date().getFullYear()} Дневник боли</p>
       </footer>
     </div>
   );

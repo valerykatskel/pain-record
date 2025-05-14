@@ -10,7 +10,8 @@ type CalendarValue = Date | null | [Date | null, Date | null];
 
 const PainCalendar = () => {
   const [date, setDate] = useState<Date>(new Date());
-  const { records, getRecordsForDate } = usePainRecords();
+  const { records, getRecordsForDate, deleteRecord } = usePainRecords();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Функция для определения стиля даты в зависимости от наличия записей о боли
   const getTileClassName = ({ date, view }: { date: Date; view: string }) => {
@@ -45,6 +46,19 @@ const PainCalendar = () => {
     return getRecordsForDate(date);
   };
 
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = (id: string) => {
+    deleteRecord(id);
+    setDeleteConfirmId(null);
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmId(null);
+  };
+
   return (
     <div className="pain-calendar">
       <h2>Календарь боли</h2>
@@ -69,15 +83,45 @@ const PainCalendar = () => {
         {getDayRecords().length === 0 ? (
           <p>Нет записей на этот день</p>
         ) : (
-          <ul>
+          <ul className="records-list">
             {getDayRecords().map((record: PainRecord) => (
               <li key={record.id} className="pain-record-item">
-                <div className="pain-type">{record.type === 'headache' ? 'Головная боль' : 'Боль в животе'}</div>
-                <div className="pain-details">
-                  <span>Причина: {getPainCauseLabel(record.cause)}</span>
-                  <span>Интенсивность: {record.intensity}/10</span>
-                  {record.notes && <div className="pain-notes">Заметки: {record.notes}</div>}
+                <div className="pain-record-content">
+                  <div className="pain-type">{record.type === 'headache' ? 'Головная боль' : 'Боль в животе'}</div>
+                  <div className="pain-details">
+                    <span>Причина: {getPainCauseLabel(record.cause)}</span>
+                    <span>Интенсивность: {record.intensity}/10</span>
+                    {record.notes && <div className="pain-notes">Заметки: {record.notes}</div>}
+                  </div>
                 </div>
+                
+                {deleteConfirmId === record.id ? (
+                  <div className="delete-confirm">
+                    <span>Удалить запись?</span>
+                    <div className="delete-actions">
+                      <button 
+                        className="confirm-delete-btn"
+                        onClick={() => confirmDelete(record.id)}
+                      >
+                        Да
+                      </button>
+                      <button 
+                        className="cancel-delete-btn"
+                        onClick={cancelDelete}
+                      >
+                        Нет
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    className="delete-record-btn" 
+                    onClick={() => handleDeleteClick(record.id)}
+                    title="Удалить запись"
+                  >
+                    ×
+                  </button>
+                )}
               </li>
             ))}
           </ul>

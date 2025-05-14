@@ -1,11 +1,15 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { PainRecord, PainType, PainCause } from '../types';
 import { format } from 'date-fns';
+
+// Ключ для хранения записей в localStorage
+const STORAGE_KEY = 'painRecords';
 
 interface PainRecordContextType {
   records: PainRecord[];
   addRecord: (record: Omit<PainRecord, 'id'>) => void;
   deleteRecord: (id: string) => void;
+  clearAllRecords: () => void;
   getRecordsForDate: (date: Date) => PainRecord[];
   getChartData: (startDate: Date, endDate: Date, filters: {
     types: PainType[];
@@ -19,7 +23,33 @@ interface PainRecordContextType {
 const PainRecordContext = createContext<PainRecordContextType | undefined>(undefined);
 
 export const PainRecordProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [records, setRecords] = useState<PainRecord[]>([]);
+  // Инициализируем состояние из localStorage, если данные есть
+  const [records, setRecords] = useState<PainRecord[]>(() => {
+    try {
+      const storedRecords = localStorage.getItem(STORAGE_KEY);
+      if (storedRecords) {
+        const parsedRecords = JSON.parse(storedRecords);
+        // Преобразуем строки дат обратно в объекты Date
+        return parsedRecords.map((record: any) => ({
+          ...record,
+          date: new Date(record.date)
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Ошибка при загрузке данных из localStorage:', error);
+      return [];
+    }
+  });
+
+  // Сохраняем данные в localStorage при изменении records
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    } catch (error) {
+      console.error('Ошибка при сохранении данных в localStorage:', error);
+    }
+  }, [records]);
 
   const addRecord = (newRecord: Omit<PainRecord, 'id'>) => {
     const record: PainRecord = {
@@ -31,6 +61,10 @@ export const PainRecordProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const deleteRecord = (id: string) => {
     setRecords(records.filter(record => record.id !== id));
+  };
+
+  const clearAllRecords = () => {
+    setRecords([]);
   };
 
   const getRecordsForDate = (date: Date) => {
@@ -98,6 +132,7 @@ export const PainRecordProvider: React.FC<{ children: ReactNode }> = ({ children
       records,
       addRecord,
       deleteRecord,
+      clearAllRecords,
       getRecordsForDate,
       getChartData
     }}>
