@@ -22,6 +22,19 @@ const scheduledNotifications = new Map();
 // DB для хранения напоминаний
 let db;
 
+// Определяем, запущено ли приложение на iOS
+const isIOS = () => {
+  return (
+    ['iPad', 'iPhone', 'iPod'].includes(navigator.platform) ||
+    (navigator.userAgent.includes("Mac") && "ontouchend" in document)
+  );
+};
+
+// Определяем, поддерживает ли браузер Web Push API
+const supportsPushAPI = () => {
+  return 'PushManager' in self;
+};
+
 // Открываем IndexedDB для хранения настроек напоминаний
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -311,18 +324,65 @@ function calculateNextNotificationTime(settings) {
 
 // Функция для показа уведомления
 function showNotification(title, body) {
-  self.registration.showNotification(title, {
-    body: body,
-    icon: '/logo192.png',
-    badge: '/logo192.png',
-    data: {
-      url: '/',
-      timestamp: Date.now()
-    },
-    vibrate: [200, 100, 200],
-    // Важно: делаем уведомление персистентным, чтобы оно не исчезало автоматически
-    requireInteraction: true
-  });
+  // Пытаемся использовать push уведомления, если доступны на iOS Safari 16.4+
+  if (isIOS() && supportsPushAPI() && self.registration.pushManager) {
+    console.log('[SW] Используем Push API для iOS');
+    
+    // Запрашиваем разрешение на push-уведомления
+    self.registration.pushManager.getSubscription()
+      .then(subscription => {
+        if (subscription) {
+          // Если есть подписка, используем стандартный способ показа уведомлений
+          self.registration.showNotification(title, {
+            body: body,
+            icon: '/logo192.png',
+            badge: '/logo192.png',
+            data: {
+              url: '/',
+              timestamp: Date.now()
+            },
+            vibrate: [200, 100, 200],
+            requireInteraction: true,
+            // Специальные настройки для iOS Safari
+            silent: false,
+            actions: [
+              {
+                action: 'open',
+                title: 'Открыть приложение'
+              }
+            ]
+          });
+        } else {
+          console.log('[SW] Нет подписки для Push API на iOS');
+          // Если нет подписки, используем альтернативный метод для iOS
+          // На iOS можно использовать Local Notifications API при следующем открытии приложения
+          storeNotificationForNextOpen(title, body);
+        }
+      })
+      .catch(error => {
+        console.error('[SW] Ошибка при работе с Push API:', error);
+        // Fallback к стандартному способу
+        self.registration.showNotification(title, {
+          body: body,
+          icon: '/logo192.png',
+          badge: '/logo192.png',
+          requireInteraction: true
+        });
+      });
+  } else {
+    // Стандартный способ для других платформ
+    self.registration.showNotification(title, {
+      body: body,
+      icon: '/logo192.png',
+      badge: '/logo192.png',
+      data: {
+        url: '/',
+        timestamp: Date.now()
+      },
+      vibrate: [200, 100, 200],
+      requireInteraction: true
+    });
+  }
   
   // Отправляем сообщение всем клиентам о том, что уведомление показано
   self.clients.matchAll().then(clients => {
@@ -336,6 +396,35 @@ function showNotification(title, body) {
         }
       });
     });
+  });
+}
+
+// Сохраняем уведомление для показа при следующем открытии приложения
+function storeNotificationForNextOpen(title, body) {
+  return new Promise((resolve, reject) => {
+    openDatabase().then((db) => {
+      const transaction = db.transaction(['reminders'], 'readwrite');
+      const store = transaction.objectStore('reminders');
+      
+      const notification = {
+        id: 'pendingNotification_' + Date.now(),
+        title: title,
+        body: body,
+        timestamp: Date.now()
+      };
+      
+      const request = store.put(notification);
+      
+      request.onsuccess = () => {
+        console.log('[SW] Уведомление сохранено для показа при следующем открытии');
+        resolve();
+      };
+      
+      request.onerror = (e) => {
+        console.error('[SW] Ошибка при сохранении уведомления', e);
+        reject(e);
+      };
+    }).catch(reject);
   });
 }
 
