@@ -5,6 +5,9 @@ import { PainType, PainCause } from '../types';
 const AddPainForm = () => {
   const { addRecord } = usePainRecords();
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [time, setTime] = useState<string>(
+    new Date().toTimeString().substring(0, 5) // Устанавливаем текущее время в формате HH:MM
+  );
   const [type, setType] = useState<PainType>('headache');
   const [cause, setCause] = useState<PainCause>('unknown');
   const [intensity, setIntensity] = useState<number>(5);
@@ -15,6 +18,7 @@ const AddPainForm = () => {
     e.preventDefault();
     addRecord({
       date: new Date(date),
+      time, // Добавляем время в запись
       type,
       cause,
       intensity,
@@ -42,16 +46,30 @@ const AddPainForm = () => {
         <div className="bg-white p-4 rounded-lg shadow-md">
           <h3 className="text-lg font-medium text-gray-800 mb-4">Добавить запись о боли</h3>
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Дата:</label>
-              <input
-                type="date"
-                id="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+            <div className="mb-4 flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Дата:</label>
+                <input
+                  type="date"
+                  id="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              
+              <div className="flex-1">
+                <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">Время:</label>
+                <input
+                  type="time"
+                  id="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  required
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
             </div>
             
             <div className="mb-4">

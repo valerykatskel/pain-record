@@ -15,6 +15,67 @@ const App = () => {
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
 
+  // Проверяем наличие отложенных уведомлений для iOS
+  const checkPendingNotifications = async () => {
+    try {
+      if (!('indexedDB' in window)) return;
+      
+      const openRequest = indexedDB.open('painRecordDB', 1);
+      
+      openRequest.onsuccess = (event) => {
+        // @ts-ignore
+        const db = event.target.result;
+        
+        // Проверяем, существует ли хранилище reminders
+        if (!db.objectStoreNames.contains('reminders')) return;
+        
+        const transaction = db.transaction(['reminders'], 'readwrite');
+        const store = transaction.objectStore('reminders');
+        
+        // Получаем все записи, начинающиеся с 'pendingNotification_'
+        const request = store.openCursor();
+        
+        request.onsuccess = (e: Event) => {
+          // @ts-ignore
+          const cursor = e.target.result;
+          if (cursor) {
+            const key = cursor.key;
+            const value = cursor.value;
+            
+            // Если это сохраненное уведомление
+            if (typeof key === 'string' && key.startsWith('pendingNotification_')) {
+              console.log('Найдено отложенное уведомление:', value);
+              
+              // Показываем уведомление
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(value.title, {
+                  body: value.body,
+                  icon: '/logo192.png',
+                  requireInteraction: true
+                });
+              }
+              
+              // Удаляем уведомление из БД
+              store.delete(key);
+            }
+            
+            cursor.continue();
+          }
+        };
+      };
+      
+      openRequest.onupgradeneeded = (event) => {
+        // @ts-ignore
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('reminders')) {
+          db.createObjectStore('reminders', { keyPath: 'id' });
+        }
+      };
+    } catch (error) {
+      console.error('Ошибка при проверке отложенных уведомлений:', error);
+    }
+  };
+
   // Регистрируем сервис-воркер для PWA функциональности
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -34,6 +95,9 @@ const App = () => {
           console.log('Service Worker уже активен');
           setSwRegistration(registration);
           checkScheduledNotifications();
+          
+          // Проверяем наличие отложенных уведомлений (для iOS)
+          checkPendingNotifications();
         });
       }
       
@@ -45,6 +109,9 @@ const App = () => {
           
           // Проверяем наличие запланированных уведомлений при загрузке
           checkScheduledNotifications();
+          
+          // Проверяем наличие отложенных уведомлений (для iOS)
+          checkPendingNotifications();
         },
         onUpdate: (registration) => {
           console.log('Доступна новая версия приложения');
@@ -53,8 +120,18 @@ const App = () => {
         }
       });
       
+      // Проверяем уведомления также при активации вкладки/окна
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          checkPendingNotifications();
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
       return () => {
         navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
   }, []);

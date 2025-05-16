@@ -12,6 +12,23 @@ interface RemindersProps {
   requestPermission?: () => Promise<void>;
 }
 
+// Проверка на iOS устройство
+const isIOS = () => {
+  const userAgent = navigator.userAgent || '';
+  return (
+    /iPad|iPhone|iPod/.test(userAgent) && 
+    !(window as any).MSStream
+  );
+};
+
+// Глобальный тип для Firebase
+declare global {
+  interface Window {
+    firebase?: any;
+    firebaseMessaging?: any;
+  }
+}
+
 const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission }) => {
   const STORAGE_KEY = 'painRecordReminders';
   
@@ -37,8 +54,14 @@ const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission
   
   const [notificationsPermission, setNotificationsPermission] = useState<NotificationPermission | null>(null);
   const [nextNotificationTime, setNextNotificationTime] = useState<string>("");
+  const [showIOSOption, setShowIOSOption] = useState<boolean>(false);
+  const [fcmSupported, setFcmSupported] = useState<boolean>(false);
+  const [fcmRegistered, setFcmRegistered] = useState<boolean>(false);
   
   useEffect(() => {
+    // Определяем, показывать ли опцию для iOS
+    setShowIOSOption(isIOS());
+    
     if ('Notification' in window) {
       setNotificationsPermission(Notification.permission);
     }
@@ -59,6 +82,25 @@ const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission
       console.error('Ошибка при сохранении настроек напоминаний:', error);
     }
   }, [reminders]);
+  
+  useEffect(() => {
+    // Проверяем поддержку Firebase Cloud Messaging
+    if (window.firebase && window.firebaseMessaging) {
+      setFcmSupported(true);
+      
+      // Проверяем, есть ли уже токен
+      window.firebaseMessaging.getToken()
+        .then((token: string) => {
+          if (token) {
+            setFcmRegistered(true);
+            console.log('FCM token already exists:', token);
+          }
+        })
+        .catch((err: any) => {
+          console.log('FCM token error:', err);
+        });
+    }
+  }, []);
   
   const toggleEnabled = () => {
     setReminders({
@@ -249,6 +291,61 @@ const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission
     }
   };
   
+  // Функция для создания iCalendar события
+  const generateICSFile = () => {
+    try {
+      // Получаем следующую дату напоминания
+      const reminderDate = calculateNextNotificationTime();
+      
+      // Формат даты для iCalendar
+      const formatDate = (date: Date) => {
+        return date.toISOString().replace(/-|:|\.\d+/g, '');
+      };
+      
+      // Создаем дату окончания напоминания (через 1 час)
+      const endDate = new Date(reminderDate.getTime() + 60 * 60 * 1000);
+      
+      // Создаем содержимое iCalendar файла
+      const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+SUMMARY:Напоминание о записи болей
+DTSTART:${formatDate(reminderDate)}
+DTEND:${formatDate(endDate)}
+DESCRIPTION:Не забудьте записать информацию о болях за сегодня в приложении "Дневник боли".
+STATUS:CONFIRMED
+SEQUENCE:0
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Напоминание!
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+      
+      // Создаем blob с содержимым файла
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      
+      // Создаем ссылку для скачивания
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'pain-record-reminder.ics';
+      
+      // Запускаем скачивание
+      document.body.appendChild(link);
+      link.click();
+      
+      // Удаляем элемент
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }, 100);
+    } catch (error) {
+      console.error('Ошибка при создании файла календаря:', error);
+    }
+  };
+  
   const dayLabels = [
     { value: '1', label: 'Пн' },
     { value: '2', label: 'Вт' },
@@ -258,6 +355,38 @@ const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission
     { value: '6', label: 'Сб' },
     { value: '0', label: 'Вс' }
   ];
+  
+  // Функция для регистрации в FCM
+  const registerForFCM = async () => {
+    if (!fcmSupported || !window.firebaseMessaging) {
+      console.error('Firebase Cloud Messaging не поддерживается или не инициализирован');
+      return;
+    }
+    
+    try {
+      // Запрашиваем разрешение на уведомления
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        await Notification.requestPermission();
+      }
+      
+      // Получаем токен для устройства
+      const token = await window.firebaseMessaging.getToken({
+        vapidKey: 'REPLACE_WITH_YOUR_FIREBASE_VAPID_KEY'
+      });
+      
+      if (token) {
+        console.log('FCM токен получен:', token);
+        setFcmRegistered(true);
+        
+        // Здесь можно сохранить токен на сервере или в localStorage
+        localStorage.setItem('fcmToken', token);
+      } else {
+        console.log('Не удалось получить FCM токен');
+      }
+    } catch (error) {
+      console.error('Ошибка при регистрации в FCM:', error);
+    }
+  };
   
   return (
     <div className="bg-white p-4 rounded-lg shadow-md my-4">
@@ -391,6 +520,38 @@ const Reminders: React.FC<RemindersProps> = ({ swRegistration, requestPermission
                     Уведомления будут работать даже при закрытом приложении,
                     если устройство включено и подключено к интернету.
                   </p>
+                </div>
+              )}
+
+              {showIOSOption && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
+                  <p className="font-medium text-yellow-800">Дополнительная опция для iOS:</p>
+                  <p className="text-yellow-700 mb-2">
+                    Для более надежной работы напоминаний на iOS вы можете добавить их 
+                    в приложение "Календарь".
+                  </p>
+                  <button
+                    className="bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 transition-colors duration-200 text-sm"
+                    onClick={generateICSFile}
+                  >
+                    Создать напоминание для Календаря
+                  </button>
+                </div>
+              )}
+
+              {isIOS() && fcmSupported && !fcmRegistered && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                  <p className="font-medium text-blue-800">Улучшение уведомлений для iOS:</p>
+                  <p className="text-blue-700 mb-2">
+                    Для более надежной работы уведомлений на iOS вы можете использовать 
+                    систему push-уведомлений Firebase.
+                  </p>
+                  <button
+                    className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors duration-200 text-sm"
+                    onClick={registerForFCM}
+                  >
+                    Включить push-уведомления
+                  </button>
                 </div>
               )}
             </>

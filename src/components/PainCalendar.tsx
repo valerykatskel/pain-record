@@ -13,6 +13,7 @@ const PainCalendar = () => {
   const [date, setDate] = useState<Date>(new Date());
   const { getRecordsForDate, deleteRecord } = usePainRecords();
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [sortByTime, setSortByTime] = useState<boolean>(true);
 
   // Функция для определения стиля даты в зависимости от наличия записей о боли
   const getTileClassName = ({ date, view }: { date: Date; view: string }) => {
@@ -44,7 +45,16 @@ const PainCalendar = () => {
   };
 
   const getDayRecords = () => {
-    return getRecordsForDate(date);
+    const records = getRecordsForDate(date);
+    
+    // Сортируем записи по времени, если включена соответствующая опция
+    if (sortByTime) {
+      return [...records].sort((a, b) => {
+        return a.time.localeCompare(b.time);
+      });
+    }
+    
+    return records;
   };
 
   const handleDeleteClick = (id: string) => {
@@ -60,6 +70,29 @@ const PainCalendar = () => {
     setDeleteConfirmId(null);
   };
 
+  // Функция для определения времени суток (утро, день, вечер, ночь)
+  const getTimeOfDay = (time: string): string => {
+    const hour = parseInt(time.split(':')[0], 10);
+    
+    if (hour >= 5 && hour < 12) return 'Утро';
+    if (hour >= 12 && hour < 18) return 'День';
+    if (hour >= 18 && hour < 23) return 'Вечер';
+    return 'Ночь';
+  };
+  
+  // Функция для получения иконки времени суток
+  const getTimeIcon = (time: string): string => {
+    const timeOfDay = getTimeOfDay(time);
+    
+    switch (timeOfDay) {
+      case 'Утро': return '🌅';
+      case 'День': return '☀️';
+      case 'Вечер': return '🌆';
+      case 'Ночь': return '🌙';
+      default: return '⏱️';
+    }
+  };
+  
   return (
     <div className="mt-5 max-w-3xl mx-auto">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Календарь боли</h2>
@@ -74,9 +107,23 @@ const PainCalendar = () => {
       </div>
       
       <div className="bg-white p-4 rounded-lg shadow-md">
-        <h3 className="text-lg font-medium text-gray-800 mb-3">
-          Записи на {format(date, 'dd.MM.yyyy')}
-        </h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-medium text-gray-800">
+            Записи на {format(date, 'dd.MM.yyyy')}
+          </h3>
+          
+          <div className="flex items-center">
+            <label className="inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={sortByTime}
+                onChange={() => setSortByTime(!sortByTime)}
+                className="form-checkbox h-3.5 w-3.5 text-green-600 rounded border-gray-300 focus:ring-green-500"
+              />
+              <span className="ml-1.5 text-sm text-gray-700">Сортировать по времени</span>
+            </label>
+          </div>
+        </div>
         
         <div className="flex flex-wrap gap-3 mb-4">
           <div className="flex items-center">
@@ -96,9 +143,17 @@ const PainCalendar = () => {
             {getDayRecords().map((record: PainRecord) => (
               <li key={record.id} className="bg-gray-50 rounded-md p-3 flex justify-between items-start">
                 <div className="flex-1">
-                  <div className={`font-medium ${record.type === 'headache' ? 'text-pink-700' : 'text-blue-700'} mb-1`}>
-                    {record.type === 'headache' ? 'Головная боль' : 'Боль в животе'}
+                  <div className="flex items-center mb-1">
+                    <span className={`font-medium ${record.type === 'headache' ? 'text-pink-700' : 'text-blue-700'} mr-2`}>
+                      {record.type === 'headache' ? 'Головная боль' : 'Боль в животе'}
+                    </span>
+                    
+                    <div className="bg-gray-200 rounded-full px-2 py-0.5 text-xs text-gray-700 flex items-center">
+                      <span className="mr-1">{getTimeIcon(record.time)}</span>
+                      <span>{record.time}</span>
+                    </div>
                   </div>
+                  
                   <div className="text-sm text-gray-700 space-y-1">
                     <div>Причина: <span className="font-medium">{getPainCauseLabel(record.cause)}</span></div>
                     <div>Интенсивность: <span className="font-medium">{record.intensity}/10</span></div>

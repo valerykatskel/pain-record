@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { PainRecord, PainType, PainCause } from '../types';
-import { format } from 'date-fns';
+import { PainRecord, PainType, PainCause, HourlyChartData } from '../types';
+import { format, parseISO, setHours, setMinutes, isValid } from 'date-fns';
 
 // Ключ для хранения записей в localStorage
 const STORAGE_KEY = 'painRecords';
@@ -18,6 +18,10 @@ interface PainRecordContextType {
     date: string;
     [key: string]: any;
   }>;
+  getHourlyChartData: (date: Date, filters: {
+    types: PainType[];
+    causes: PainCause[];
+  }) => HourlyChartData[];
 }
 
 const PainRecordContext = createContext<PainRecordContextType | undefined>(undefined);
@@ -32,7 +36,9 @@ export const PainRecordProvider: React.FC<{ children: ReactNode }> = ({ children
         // Преобразуем строки дат обратно в объекты Date
         return parsedRecords.map((record: any) => ({
           ...record,
-          date: new Date(record.date)
+          date: new Date(record.date),
+          // Добавляем поле time для совместимости со старыми записями
+          time: record.time || '12:00' // Устанавливаем полдень как значение по умолчанию для старых записей
         }));
       }
       return [];
@@ -127,6 +133,50 @@ export const PainRecordProvider: React.FC<{ children: ReactNode }> = ({ children
     });
   };
 
+  // Новая функция для получения почасовых данных за конкретный день
+  const getHourlyChartData = (date: Date, filters: {
+    types: PainType[];
+    causes: PainCause[];
+  }): HourlyChartData[] => {
+    const dateString = format(date, 'yyyy-MM-dd');
+    
+    // Создаем массив для всех часов дня (0-23)
+    const hourlyData: HourlyChartData[] = Array.from({ length: 24 }, (_, hour) => ({
+      hour: `${hour.toString().padStart(2, '0')}:00`,
+      painCount: 0
+    }));
+    
+    // Фильтруем записи только за указанный день
+    const dayRecords = records.filter(record => {
+      const recordDate = format(new Date(record.date), 'yyyy-MM-dd');
+      return (
+        recordDate === dateString && 
+        filters.types.includes(record.type) &&
+        (filters.causes.length === 0 || filters.causes.includes(record.cause))
+      );
+    });
+    
+    // Распределяем записи по часам
+    dayRecords.forEach(record => {
+      // Извлекаем час из времени записи (формат HH:MM)
+      const hour = parseInt(record.time.split(':')[0], 10);
+      
+      if (hour >= 0 && hour < 24) {
+        // Увеличиваем счетчик болей для этого часа
+        hourlyData[hour].painCount += 1;
+        
+        // Добавляем интенсивность боли по типу
+        if (record.type === 'headache') {
+          hourlyData[hour].headache = Math.max(hourlyData[hour].headache || 0, record.intensity);
+        } else if (record.type === 'stomach') {
+          hourlyData[hour].stomach = Math.max(hourlyData[hour].stomach || 0, record.intensity);
+        }
+      }
+    });
+    
+    return hourlyData;
+  };
+
   return (
     <PainRecordContext.Provider value={{
       records,
@@ -134,7 +184,8 @@ export const PainRecordProvider: React.FC<{ children: ReactNode }> = ({ children
       deleteRecord,
       clearAllRecords,
       getRecordsForDate,
-      getChartData
+      getChartData,
+      getHourlyChartData
     }}>
       {children}
     </PainRecordContext.Provider>

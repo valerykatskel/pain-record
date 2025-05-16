@@ -60,6 +60,11 @@ const DataManagement = () => {
             throw new Error('Некорректная структура данных в одной из записей.');
           }
           
+          // Предупреждение, если в записи отсутствует время
+          if (!record.time) {
+            console.warn(`Для записи с ID ${record.id} отсутствует поле time. Будет использовано значение по умолчанию (12:00).`);
+          }
+          
           // Добавляем запись в контекст
           // Используем addRecord, чтобы генерировать новый ID
           addRecord({
@@ -67,7 +72,8 @@ const DataManagement = () => {
             type: record.type,
             cause: record.cause,
             intensity: record.intensity,
-            notes: record.notes || ''
+            notes: record.notes || '',
+            time: record.time || '12:00'
           });
           
           importCount++;
